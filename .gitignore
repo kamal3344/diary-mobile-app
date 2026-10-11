@@ -1,0 +1,13 @@
+# Secrets: Gmail app password lives here
+daybook/config.json
+
+# User data: accounts and diary entries
+daybook/*.db
+daybook/*.db-shm
+daybook/*.db-wal
+
+# Local tooling
+.claude/
+__pycache__/
+*.pyc
+.venv/

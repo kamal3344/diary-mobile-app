@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0E0D12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Daybook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0E0D12; --bg2:#14131A; --surface:#1A1922; --surface2:#22212C; --line:#2C2A37;
+  --ink:#F3EFE6; --muted:#8E8A99; --gold:#D4AF6A; --gold2:#F1D9A6; --danger:#E06C6C; --ok:#7DC59A;
+  --shadow:0 20px 50px -20px rgba(0,0,0,.7);
+  --serif:'Cormorant Garamond', Georgia, serif; --sans:'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#F6F1E8; --bg2:#EFE8DB; --surface:#FFFFFF; --surface2:#F7F2E9; --line:#E4DACA;
+  --ink:#1E1A15; --muted:#7D7365; --gold:#A47A2C; --gold2:#7A5A1E; --shadow:0 20px 40px -24px rgba(60,40,10,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:#08070B;color:var(--ink);font-family:var(--sans);font-size:15px;display:flex;justify-content:center;overflow:hidden}
+:root[data-theme="light"] body{background:#E5DDCF}
+.app{position:relative;width:100%;max-width:430px;height:100dvh;background:var(--bg);overflow:hidden;box-shadow:0 0 80px rgba(0,0,0,.5)}
+@media(min-width:500px){.app{height:min(900px,96dvh);margin-top:2dvh;border-radius:36px;border:1px solid var(--line)}}
+
+/* screens */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateY(14px);transition:opacity .35s ease,transform .35s ease;overflow-y:auto;padding:calc(env(safe-area-inset-top) + 24px) 24px calc(env(safe-area-inset-bottom) + 24px)}
+.screen.active{opacity:1;pointer-events:auto;transform:none}
+.screen::-webkit-scrollbar{display:none}
+
+/* auth */
+.glow{position:absolute;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(212,175,106,.22),transparent 65%);top:-140px;right:-120px;pointer-events:none}
+.brand{display:flex;align-items:center;gap:10px;margin-top:20px}
+.logo{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,var(--gold2),var(--gold));display:grid;place-items:center;color:#1a140a;font-family:var(--serif);font-size:24px;font-weight:600;box-shadow:0 8px 24px -8px rgba(212,175,106,.6)}
+.brand span{font-family:var(--serif);font-size:24px;letter-spacing:.5px}
+h1{font-family:var(--serif);font-weight:500;font-size:40px;line-height:1.05;margin:44px 0 10px}
+h1 em{color:var(--gold);font-style:italic}
+.sub{color:var(--muted);line-height:1.55;margin-bottom:30px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.inputwrap{position:relative}
+input.in{width:100%;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:15px 16px;font:inherit;outline:none;transition:border-color .2s, box-shadow .2s}
+input.in:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,106,.12)}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);padding:8px;cursor:pointer}
+.row{display:flex;justify-content:space-between;align-items:center;margin:4px 0 24px;font-size:14px}
+.check{display:flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer}
+.check input{accent-color:var(--gold);width:16px;height:16px}
+.link{background:none;border:0;color:var(--gold);font:inherit;cursor:pointer;font-weight:500}
+.btn{width:100%;border:0;border-radius:16px;padding:16px;font:600 15px var(--sans);cursor:pointer;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a140a;box-shadow:0 12px 30px -12px rgba(212,175,106,.7);transition:transform .15s, opacity .2s;letter-spacing:.02em}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.foot{text-align:center;color:var(--muted);margin-top:auto;padding-top:28px;font-size:14px}
+.err{color:var(--danger);font-size:13px;min-height:18px;margin:-6px 0 10px}
+.back{width:42px;height:42px;border-radius:13px;background:var(--surface);border:1px solid var(--line);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex-shrink:0}
+.meter{display:flex;gap:6px;margin-top:10px}
+.meter i{flex:1;height:4px;border-radius:4px;background:var(--line);transition:background .25s}
+.meterlbl{font-size:12px;color:var(--muted);margin-top:6px}
+
+.otp{display:flex;gap:10px;justify-content:space-between;margin:10px 0 18px}
+.otp input{width:100%;aspect-ratio:1/1.15;text-align:center;font:600 24px var(--sans);background:var(--surface);border:1px solid var(--line);border-radius:14px;color:var(--ink);outline:none;caret-color:var(--gold)}
+.otp input:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,106,.12)}
+.otp.shake{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.resend{text-align:center;color:var(--muted);font-size:14px;margin-top:18px}
+.otpicon{width:64px;height:64px;border-radius:20px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--gold);margin-top:34px}
+
+/* notification banner (simulated SMS/email) */
+.notif{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:50;background:rgba(34,33,44,.96);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;padding:14px 16px;display:flex;gap:12px;align-items:center;transform:translateY(-140%);transition:transform .45s cubic-bezier(.2,.9,.3,1.2);box-shadow:var(--shadow);cursor:pointer}
+:root[data-theme="light"] .notif{background:rgba(255,255,255,.97)}
+.notif.show{transform:none}
+.notif .logo{width:36px;height:36px;font-size:19px;border-radius:10px;flex-shrink:0}
+.notif b{font-size:13px;display:block}
+.notif p{font-size:13px;color:var(--muted);margin-top:2px}
+.notif .code{color:var(--gold);font-weight:600;letter-spacing:.12em}
+
+.toast{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:30px;font-size:14px;font-weight:500;opacity:0;transition:.3s;z-index:60;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* home */
+#home{padding-bottom:110px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a140a;display:grid;place-items:center;font-weight:600;border:0;cursor:pointer;font-size:16px}
+.date-sm{color:var(--muted);font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.greet{font-family:var(--serif);font-size:34px;font-weight:500;line-height:1.1;margin:22px 0 4px}
+.greet em{color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px}
+.stat b{font-family:var(--sans);font-size:24px;font-weight:600;margin-bottom:4px;color:var(--gold);display:block;line-height:1}
+.stat span{font-size:12px;color:var(--muted)}
+.week{display:flex;gap:6px;margin-bottom:20px}
+.day{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 0 8px;text-align:center;cursor:pointer;color:var(--ink);font:inherit;transition:.2s}
+.day small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase}
+.day b{display:block;font-size:17px;margin:3px 0 4px;font-weight:600}
+.day i{display:block;width:5px;height:5px;border-radius:50%;margin:0 auto;background:transparent}
+.day.has i{background:var(--gold)}
+.day.sel{background:linear-gradient(160deg,var(--gold2),var(--gold));border-color:transparent;color:#1a140a}
+.day.sel small{color:#3b2e14}
+.day.sel.has i{background:#1a140a}
+.search{position:relative;margin-bottom:18px}
+.search input{padding-left:44px}
+.search svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+.sechead h3{font-family:var(--serif);font-size:22px;font-weight:500}
+.sechead button{font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px;margin-bottom:12px;cursor:pointer;transition:transform .15s,border-color .2s;display:block;width:100%;text-align:left;color:var(--ink);font:inherit}
+.card:active{transform:scale(.985)}
+.card:hover{border-color:color-mix(in srgb,var(--gold) 45%,var(--line))}
+.card .meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+.card h4{font-family:var(--serif);font-size:21px;font-weight:600;margin:8px 0 4px;line-height:1.2}
+.card p{color:var(--muted);font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .q{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);margin:14px 0 8px;line-height:1.35}
+.fab{position:absolute;right:22px;bottom:calc(env(safe-area-inset-bottom) + 24px);height:60px;padding:0 24px 0 20px;border-radius:30px;border:0;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a140a;font:600 15px var(--sans);display:flex;align-items:center;gap:8px;box-shadow:0 16px 36px -10px rgba(212,175,106,.75);cursor:pointer;z-index:5;opacity:0;pointer-events:none;transition:.3s}
+.fab.show{opacity:1;pointer-events:auto}
+
+/* editor */
+#editor{padding-bottom:20px}
+.edtop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.saved{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.saved i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.saved.saving i{background:var(--gold)}
+.eddate{margin-top:24px;display:flex;align-items:center;gap:10px}
+.eddate input{background:transparent;border:0;color:var(--gold);font:500 13px var(--sans);letter-spacing:.08em;text-transform:uppercase;outline:none;color-scheme:dark}
+:root[data-theme="light"] .eddate input{color-scheme:light}
+.moods{display:flex;gap:8px;margin:18px 0 6px;overflow-x:auto;padding-bottom:4px}
+.moods::-webkit-scrollbar{display:none}
+.mood{flex-shrink:0;border:1px solid var(--line);background:var(--surface);border-radius:30px;padding:8px 13px;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;display:flex;gap:6px;align-items:center;transition:.2s}
+.mood.on{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--surface))}
+.ttl{width:100%;background:none;border:0;outline:none;color:var(--ink);font:600 32px/1.15 var(--serif);margin:16px 0 8px}
+.ttl::placeholder,.body::placeholder{color:color-mix(in srgb,var(--muted) 70%,transparent)}
+.body{flex:1;width:100%;min-height:300px;background:none;border:0;outline:none;resize:none;color:var(--ink);font:400 16.5px/1.8 var(--sans)}
+.edbar{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:14px;margin-top:10px}
+.tool{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tool.danger{color:var(--danger)}
+.wc{margin-left:auto;color:var(--muted);font-size:12px}
+.prompt{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted);margin-top:6px;cursor:pointer}
+.prompt b{color:var(--gold);font-weight:500}
+
+/* sheet */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.3s;z-index:20}
+.scrim.show{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg2);border-top:1px solid var(--line);border-radius:28px 28px 0 0;padding:12px 22px calc(env(safe-area-inset-bottom) + 24px);transform:translateY(105%);transition:transform .38s cubic-bezier(.2,.9,.3,1);z-index:21;max-height:85%;overflow-y:auto}
+.sheet.show{transform:none}
+.grab{width:40px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 18px}
+.prof{display:flex;gap:14px;align-items:center;margin-bottom:20px}
+.prof .avatar{width:56px;height:56px;font-size:21px;cursor:default}
+.prof b{font-family:var(--serif);font-size:22px;font-weight:600;display:block}
+.prof span{color:var(--muted);font-size:13px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;padding:15px 4px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.opt:last-child{border-bottom:0}
+.opt .ic{width:36px;height:36px;border-radius:11px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--gold)}
+.opt.danger{color:var(--danger)}
+.opt.danger .ic{color:var(--danger)}
+.opt small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.confirm h3{font-family:var(--serif);font-size:26px;font-weight:500;margin-bottom:8px}
+.confirm p{color:var(--muted);margin-bottom:20px;line-height:1.5}
+.confirm .btns{display:flex;gap:10px}
+.btn.red{background:var(--danger);color:#fff;box-shadow:none}
+.note{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- notification (simulated SMS / email delivering the OTP) -->
+  <div class="notif" id="notif" role="status">
+    <div class="logo">D</div>
+    <div><b>Daybook · Verification</b><p id="notifText"></p></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- LOGIN -->
+  <section class="screen" id="login">
+    <div class="glow"></div>
+    <div class="brand"><div class="logo">D</div><span>Daybook</span></div>
+    <h1>Every day,<br><em>remembered.</em></h1>
+    <p class="sub">Sign in to continue writing your story.</p>
+    <form id="loginForm" novalidate>
+      <div class="field"><label>Email or username</label><input class="in" id="liId" autocomplete="username" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><div class="inputwrap"><input class="in" type="password" id="liPw" autocomplete="current-password" placeholder="••••••••"><button type="button" class="eye" data-eye="liPw" aria-label="Show password"></button></div></div>
+      <div class="err" id="liErr"></div>
+      <div class="row"><label class="check"><input type="checkbox" id="liRemember" checked> Remember me</label><button type="button" class="link" data-go="forgot">Forgot password?</button></div>
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+    <div class="foot">New to Daybook? <button class="link" data-go="signup">Create account</button></div>
+  </section>
+
+  <!-- SIGNUP -->
+  <section class="screen" id="signup">
+    <button class="back" data-go="login" aria-label="Back"></button>
+    <h1 style="margin-top:28px">Begin your<br><em>journal.</em></h1>
+    <p class="sub">A private place for your mornings, evenings and everything between.</p>
+    <form id="signupForm" novalidate>
+      <div class="field"><label>Full name</label><input class="in" id="suName" autocomplete="name" placeholder="Your name"></div>
+      <div class="field"><label>Username</label><input class="in" id="suUser" autocomplete="username" placeholder="e.g. kamal"></div>
+      <div class="field"><label>Email</label><input class="in" id="suEmail" type="email" autocomplete="email" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><div class="inputwrap"><input class="in" type="password" id="suPw" autocomplete="new-password" placeholder="At least 8 characters"><button type="button" class="eye" data-eye="suPw" aria-label="Show password"></button></div>
+        <div class="meter" id="meter"><i></i><i></i><i></i><i></i></div><div class="meterlbl" id="meterLbl">Use 8+ characters with a mix of letters, numbers &amp; symbols</div></div>
+      <div class="field"><label>Confirm password</label><input class="in" type="password" id="suPw2" autocomplete="new-password" placeholder="Repeat password"></div>
+      <div class="err" id="suErr"></div>
+      <button class="btn" type="submit">Create account</button>
+    </form>
+    <div class="foot">Already have an account? <button class="link" data-go="login">Sign in</button></div>
+  </section>
+
+  <!-- FORGOT -->
+  <section class="screen" id="forgot">
+    <button class="back" data-go="login" aria-label="Back"></button>
+    <h1 style="margin-top:28px">Forgot your<br><em>password?</em></h1>
+    <p class="sub">Enter the email linked to your account and we'll send you a 6-digit code to reset it.</p>
+    <form id="forgotForm" novalidate>
+      <div class="field"><label>Email or username</label><input class="in" id="fgId" placeholder="you@example.com"></div>
+      <div class="err" id="fgErr"></div>
+      <button class="btn" type="submit">Send reset code</button>
+    </form>
+  </section>
+
+  <!-- OTP -->
+  <section class="screen" id="otp">
+    <button class="back" id="otpBack" aria-label="Back"></button>
+    <div class="otpicon"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></svg></div>
+    <h1 style="margin-top:22px" id="otpTitle">Verify it's<br><em>you.</em></h1>
+    <p class="sub" id="otpSub"></p>
+    <div class="otp" id="otpBoxes"></div>
+    <div class="err" id="otpErr"></div>
+    <button class="btn" id="otpVerify">Verify</button>
+    <div class="resend" id="resend"></div>
+    <p class="note" id="devNote" hidden>Developer mode: email is not set up on the server yet, so the code is shown on screen.</p>
+  </section>
+
+  <!-- RESET -->
+  <section class="screen" id="reset">
+    <h1 style="margin-top:40px">Set a new<br><em>password.</em></h1>
+    <p class="sub">Choose something strong you haven't used before.</p>
+    <form id="resetForm" novalidate>
+      <div class="field"><label>New password</label><div class="inputwrap"><input class="in" type="password" id="rsPw" autocomplete="new-password" placeholder="At least 8 characters"><button type="button" class="eye" data-eye="rsPw" aria-label="Show password"></button></div></div>
+      <div class="field"><label>Confirm new password</label><input class="in" type="password" id="rsPw2" autocomplete="new-password" placeholder="Repeat password"></div>
+      <div class="err" id="rsErr"></div>
+      <button class="btn" type="submit">Update password</button>
+    </form>
+  </section>
+
+  <!-- HOME -->
+  <section class="screen" id="home">
+    <div class="top">
+      <div class="brand" style="margin:0"><div class="logo" style="width:36px;height:36px;font-size:20px;border-radius:11px">D</div><span style="font-size:21px">Daybook</span></div>
+      <button class="avatar" id="avatarBtn" aria-label="Profile and settings"></button>
+    </div>
+    <div class="greet" id="greet"></div>
+    <div class="date-sm" id="todayLbl"></div>
+    <div class="stats">
+      <div class="stat"><b id="stStreak">0</b><span>Day streak</span></div>
+      <div class="stat"><b id="stTotal">0</b><span>Entries</span></div>
+      <div class="stat"><b id="stWords">0</b><span>Words</span></div>
+    </div>
+    <div class="week" id="week"></div>
+    <div class="search"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input class="in" id="q" placeholder="Search your memories…"></div>
+    <div class="sechead"><h3 id="listTitle">Your entries</h3><button class="link" id="showAll" hidden>Show all</button></div>
+    <div id="list"></div>
+  </section>
+  <button class="fab" id="fab"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Write today</button>
+
+  <!-- EDITOR -->
+  <section class="screen" id="editor">
+    <div class="edtop">
+      <button class="back" id="edBack" aria-label="Back"></button>
+      <div class="saved" id="saved"><i></i><span>Saved</span></div>
+      <button class="btn" id="edDone" style="width:auto;padding:11px 20px">Done</button>
+    </div>
+    <div class="eddate"><svg width="16" height="16" fill="none" stroke="var(--gold)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><input type="date" id="edDate"></div>
+    <div class="moods" id="moods"></div>
+    <input class="ttl" id="edTitle" placeholder="Title your day…" maxlength="120">
+    <textarea class="body" id="edBody" placeholder="What happened today? Start from the morning…"></textarea>
+    <div class="prompt" id="promptBox"></div>
+    <div class="edbar">
+      <button class="tool" id="insTime"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Add time</button>
+      <button class="tool danger" id="edDel"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button>
+      <span class="wc" id="wc">0 words</span>
+    </div>
+  </section>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+  <input type="file" id="importFile" accept="application/json" hidden>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pref = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ?? d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch{} }
+};
+
+/* ---------- API ---------- */
+const TOKEN_KEY = 'daybook_token';
+let token = (() => { try{ return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY); }catch{ return null; } })();
+function setToken(t, remember){ token = t; try{ sessionStorage.setItem(TOKEN_KEY, t); if (remember) localStorage.setItem(TOKEN_KEY, t); }catch{} }
+function clearToken(){ token = null; try{ sessionStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY); }catch{} }
+
+async function api(path, body, method){
+  method = method || (body ? 'POST' : 'GET');
+  let res;
+  try{
+    res = await fetch('/api' + path, { method, headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  }catch{ throw Object.assign(new Error("Can't reach the Daybook server. Is it running?"), { offline:true }); }
+  let data = {}; try{ data = await res.json(); }catch{}
+  if (res.status === 401 && token){ clearToken(); me = null; show('login'); toast('Please sign in again'); }
+  if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong'), { data, status:res.status });
+  return data;
+}
+async function busy(btn, fn){
+  if (btn.disabled) return;
+  const label = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…';
+  try{ await fn(); } finally { btn.disabled = false; btn.textContent = label; }
+}
+
+/* ---------- ui helpers ---------- */
+const ICON = {
+  back:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>',
+  eye:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff:'<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
+};
+$$('.back').forEach(b => b.innerHTML = ICON.back);
+$$('[data-eye]').forEach(b => { b.innerHTML = ICON.eye; b.onclick = () => { const i = $('#'+b.dataset.eye); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.innerHTML = show ? ICON.eyeOff : ICON.eye; }; });
+
+let current = null;
+function show(id){
+  $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  $('#fab').classList.toggle('show', id === 'home');
+  current = id;
+  $$('.err').forEach(e => e.textContent = '');
+  $('#'+id).scrollTop = 0;
+}
+$$('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go));
+
+let toastT;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 2400); }
+
+let notifT;
+function notify(code, where){
+  $('#notifText').innerHTML = `Your Daybook code is <span class="code">${esc(code)}</span>. Sent to ${esc(where)}. Valid for 5 minutes.`;
+  const n = $('#notif'); n.classList.add('show'); clearTimeout(notifT); notifT = setTimeout(()=>n.classList.remove('show'), 8000);
+}
+$('#notif').onclick = () => {
+  const m = $('#notifText .code'); if (!m || current !== 'otp') return;
+  fillOtp(m.textContent); $('#notif').classList.remove('show');
+};
+
+function strength(pw){ let s=0; if(pw.length>=8)s++; if(/[A-Z]/.test(pw)&&/[a-z]/.test(pw))s++; if(/\d/.test(pw))s++; if(/[^A-Za-z0-9]/.test(pw))s++; if(pw.length<8) s=Math.min(s,1); return s; }
+$('#suPw').oninput = e => {
+  const s = strength(e.target.value), cols = ['var(--danger)','#E0A35C','var(--gold)','var(--ok)'];
+  $$('#meter i').forEach((i,k) => i.style.background = k < s ? cols[s-1] : 'var(--line)');
+  $('#meterLbl').textContent = e.target.value ? ['Too weak','Weak','Fair','Good','Strong'][s] : 'Use 8+ characters with a mix of letters, numbers & symbols';
+};
+
+/* ---------- OTP flow ---------- */
+let otp = null, resendT;
+function startOtp(r){
+  otp = { token:r.otpToken, purpose:r.purpose, email:r.maskedEmail };
+  $('#otpTitle').innerHTML = r.purpose === 'login' ? 'Verify it&rsquo;s<br><em>you.</em>' : 'Check your<br><em>inbox.</em>';
+  $('#otpSub').innerHTML = `We sent a 6-digit code to <b style="color:var(--ink)">${esc(r.maskedEmail)}</b>. Enter it below to ${r.purpose==='login'?'finish signing in':r.purpose==='signup'?'verify your email':'reset your password'}.`;
+  $('#devNote').hidden = !r.devCode;
+  buildOtp(); show('otp');
+  if (r.devCode) setTimeout(()=>notify(r.devCode, r.maskedEmail), 700);
+  startResendTimer(r.resendIn || 30);
+}
+function startResendTimer(t){
+  clearInterval(resendT);
+  const r = $('#resend');
+  const tick = () => {
+    if (t <= 0){ clearInterval(resendT); r.innerHTML = `Didn't get it? <button class="link" id="resendBtn">Resend code</button>`; $('#resendBtn').onclick = resend; }
+    else r.textContent = `Resend code in 0:${String(t--).padStart(2,'0')}`;
+  };
+  tick(); resendT = setInterval(tick, 1000);
+}
+async function resend(){
+  try{ const r = await api('/otp/resend', { otpToken:otp.token }); startOtp(r); toast('New code sent'); }
+  catch(e){ $('#otpErr').textContent = e.message; if (e.data?.restart) setTimeout(otpBack, 1400); }
+}
+function buildOtp(){
+  const box = $('#otpBoxes'); box.innerHTML = '';
+  for (let i=0;i<6;i++){
+    const inp = document.createElement('input');
+    inp.inputMode = 'numeric'; inp.maxLength = 6; inp.autocomplete = i ? 'off' : 'one-time-code'; inp.setAttribute('aria-label', 'Digit '+(i+1));
+    inp.oninput = () => {
+      const d = inp.value.replace(/\D/g,'');
+      if (d.length > 1){ fillOtp(d); return; }  // autofill / paste into one box
+      inp.value = d; if (d && inp.nextElementSibling) inp.nextElementSibling.focus(); if (otpVal().length === 6) verifyOtp();
+    };
+    inp.onkeydown = e => { if (e.key === 'Backspace' && !inp.value && inp.previousElementSibling){ inp.previousElementSibling.focus(); inp.previousElementSibling.value=''; } };
+    inp.onpaste = e => { e.preventDefault(); fillOtp((e.clipboardData.getData('text')||'').replace(/\D/g,'')); };
+    box.appendChild(inp);
+  }
+  setTimeout(()=>box.firstChild.focus(), 400);
+}
+const otpVal = () => $$('#otpBoxes input').map(i=>i.value).join('');
+function fillOtp(code){ const ins = $$('#otpBoxes input'); ins.forEach((inp,i)=>inp.value = code[i] || ''); if (otpVal().length===6) verifyOtp(); }
+let verifying = false;
+async function verifyOtp(){
+  const v = otpVal(), err = $('#otpErr');
+  if (v.length < 6) return err.textContent = 'Enter all 6 digits';
+  if (verifying) return; verifying = true; err.textContent = '';
+  try{
+    const r = await api('/otp/verify', { otpToken:otp.token, code:v });
+    clearInterval(resendT); $('#notif').classList.remove('show');
+    if (r.purpose === 'reset'){ otp.resetToken = r.resetToken; show('reset'); return; }
+    if (r.purpose === 'signup') toast('Email verified — welcome!');
+    setToken(r.token, r.remember);
+    await enter(r.user);
+  }catch(e){
+    $('#otpBoxes').classList.remove('shake'); void $('#otpBoxes').offsetWidth; $('#otpBoxes').classList.add('shake');
+    $$('#otpBoxes input').forEach(i=>i.value=''); $('#otpBoxes').firstChild.focus();
+    err.textContent = e.message;
+    if (e.data?.restart) setTimeout(otpBack, 1400);
+  }finally{ verifying = false; }
+}
+function otpBack(){ clearInterval(resendT); show(me ? 'home' : otp?.purpose === 'reset' ? 'forgot' : otp?.purpose === 'signup' ? 'signup' : 'login'); }
+$('#otpVerify').onclick = verifyOtp;
+$('#otpBack').onclick = otpBack;
+
+/* ---------- auth forms ---------- */
+$('#loginForm').onsubmit = e => {
+  e.preventDefault();
+  const id = $('#liId').value.trim(), pw = $('#liPw').value, err = $('#liErr');
+  if (!id || !pw) return err.textContent = 'Please enter your email/username and password';
+  busy($('#loginForm .btn'), async () => {
+    try{ startOtp(await api('/login', { id, password:pw, remember:$('#liRemember').checked })); }
+    catch(x){ err.textContent = x.message; }
+  });
+};
+
+$('#signupForm').onsubmit = e => {
+  e.preventDefault();
+  const name = $('#suName').value.trim(), username = $('#suUser').value.trim().toLowerCase(), email = $('#suEmail').value.trim().toLowerCase(), pw = $('#suPw').value, err = $('#suErr');
+  if (!name) return err.textContent = 'Please enter your name';
+  if (!/^[a-z0-9_.]{3,20}$/.test(username)) return err.textContent = 'Username: 3–20 letters, numbers, _ or .';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return err.textContent = 'Please enter a valid email';
+  if (strength(pw) < 2) return err.textContent = 'Please choose a stronger password';
+  if (pw !== $('#suPw2').value) return err.textContent = 'Passwords do not match';
+  busy($('#signupForm .btn'), async () => {
+    try{
+      const r = await api('/signup', { name, username, email, password:pw });
+      e.target.reset(); $('#suPw').oninput({ target:{ value:'' } });
+      startOtp(r);
+    }catch(x){ err.textContent = x.message; }
+  });
+};
+
+$('#forgotForm').onsubmit = e => {
+  e.preventDefault();
+  const id = $('#fgId').value.trim();
+  if (!id) return $('#fgErr').textContent = 'Please enter your email or username';
+  busy($('#forgotForm .btn'), async () => {
+    try{ startOtp(await api('/forgot', { id })); }
+    catch(x){ $('#fgErr').textContent = x.message; }
+  });
+};
+
+$('#resetForm').onsubmit = e => {
+  e.preventDefault();
+  const pw = $('#rsPw').value, err = $('#rsErr');
+  if (strength(pw) < 2) return err.textContent = 'Please choose a stronger password (8+ chars, mix it up)';
+  if (pw !== $('#rsPw2').value) return err.textContent = 'Passwords do not match';
+  busy($('#resetForm .btn'), async () => {
+    try{
+      await api('/reset', { resetToken:otp.resetToken, password:pw });
+      e.target.reset(); otp = null; clearToken(); me = null; cache = [];
+      toast('Password updated — please sign in'); show('login');
+    }catch(x){ err.textContent = x.message; if (x.data?.restart) setTimeout(()=>show('forgot'), 1400); }
+  });
+};
+
+/* ---------- session ---------- */
+let me = null, cache = [];
+async function enter(user){
+  me = user;
+  $('#loginForm').reset(); $('#liRemember').checked = true;
+  try{ cache = (await api('/entries')).entries; }catch(e){ cache = []; toast(e.message); }
+  filterDay = null; renderHome(); show('home');
+}
+async function logout(){
+  try{ await api('/logout', {}); }catch{}
+  clearToken(); me = null; cache = []; closeSheet(); show('login'); toast('Signed out');
+}
+
+/* ---------- entries ---------- */
+const MOODS = [['😄','Great'],['🙂','Good'],['😌','Calm'],['😐','Okay'],['😔','Low'],['😣','Rough']];
+const PROMPTS = ['How did your morning begin?','What made you smile today?','Who did you spend time with?','What did you learn today?','What are you grateful for tonight?','What would you do differently tomorrow?'];
+const iso = d => { const x = new Date(d); x.setMinutes(x.getMinutes()-x.getTimezoneOffset()); return x.toISOString().slice(0,10); };
+const today = () => iso(new Date());
+const fmtDate = (s, opt) => new Date(s+'T12:00:00').toLocaleDateString(undefined, opt || {weekday:'long', day:'numeric', month:'long'});
+const words = s => (s.trim().match(/\S+/g)||[]).length;
+
+let filterDay = null;
+function streak(list){
+  const days = new Set(list.filter(e=>e.title||e.body).map(e=>e.date));
+  let n = 0, d = new Date();
+  if (!days.has(iso(d))) d.setDate(d.getDate()-1);
+  while (days.has(iso(d))){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function renderHome(){
+  const h = new Date().getHours();
+  $('#greet').innerHTML = (h<5?'Still up':h<12?'Good morning':h<17?'Good afternoon':'Good evening') + `, <em>${esc(me.name.split(' ')[0])}</em>`;
+  $('#todayLbl').textContent = fmtDate(today());
+  $('#avatarBtn').textContent = me.name.trim()[0].toUpperCase();
+  $('#stStreak').textContent = streak(cache);
+  $('#stTotal').textContent = cache.length;
+  const w = cache.reduce((a,e)=>a+words(e.body),0);
+  $('#stWords').textContent = w >= 1000 ? (w/1000).toFixed(1)+'k' : w;
+  const has = new Set(cache.map(e=>e.date));
+  const wk = $('#week'); wk.innerHTML = '';
+  for (let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i); const k = iso(d);
+    const b = document.createElement('button');
+    b.className = 'day' + (has.has(k)?' has':'') + (filterDay===k?' sel':'');
+    b.innerHTML = `<small>${d.toLocaleDateString(undefined,{weekday:'short'}).slice(0,3)}</small><b>${d.getDate()}</b><i></i>`;
+    b.onclick = () => { filterDay = filterDay===k ? null : k; renderHome(); };
+    wk.appendChild(b);
+  }
+  renderList();
+}
+function renderList(){
+  const q = $('#q').value.trim().toLowerCase();
+  let list = [...cache].sort((a,b)=> b.date.localeCompare(a.date) || b.created - a.created);
+  if (filterDay) list = list.filter(e=>e.date===filterDay);
+  if (q) list = list.filter(e => (e.title+' '+e.body).toLowerCase().includes(q));
+  $('#listTitle').textContent = filterDay ? fmtDate(filterDay,{weekday:'long',day:'numeric',month:'short'}) : q ? 'Search results' : 'Your entries';
+  $('#showAll').hidden = !filterDay;
+  const el = $('#list');
+  if (!list.length){
+    el.innerHTML = `<div class="empty"><svg width="44" height="44" fill="none" stroke="var(--gold)" stroke-width="1.3" viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5M8 13h8M8 17h5"/></svg>
+      <div class="q">${q ? 'Nothing matches that search.' : filterDay ? 'No entry on this day.' : '“Fill your paper with the breathings of your heart.”'}</div>
+      <div>${q ? 'Try another word.' : 'Tap <b style="color:var(--gold)">Write today</b> to begin.'}</div></div>`;
+    return;
+  }
+  el.innerHTML = list.map(e => {
+    const m = MOODS.find(x=>x[1]===e.mood);
+    return `<button class="card" data-id="${esc(e.id)}"><div class="meta"><span>${fmtDate(e.date,{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</span><span>${m?m[0]+' '+m[1]:''}</span></div>
+      <h4>${esc(e.title || 'Untitled day')}</h4><p>${esc(e.body.slice(0,240) || 'No words yet…')}</p></button>`;
+  }).join('');
+  $$('#list .card').forEach(c => c.onclick = () => openEditor(c.dataset.id));
+}
+$('#q').oninput = renderList;
+$('#showAll').onclick = () => { filterDay = null; renderHome(); };
+
+/* ---------- editor ---------- */
+let edit = null, saveT, saving = Promise.resolve();
+function openEditor(id){
+  if (id) edit = {...cache.find(e=>e.id===id)};
+  else {
+    const d = filterDay || today();
+    const existing = cache.find(e=>e.date===d);
+    edit = existing ? {...existing} : { id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:d, title:'', body:'', mood:'', created:Date.now(), updated:Date.now(), isNew:true };
+  }
+  $('#edDate').value = edit.date; $('#edDate').max = today();
+  $('#edTitle').value = edit.title; $('#edBody').value = edit.body;
+  renderMoods(); updateWc(); setSaved('ok');
+  $('#promptBox').innerHTML = `<b>Prompt ·</b> ${PROMPTS[Math.floor(Math.random()*PROMPTS.length)]}`;
+  $('#promptBox').hidden = !!edit.body;
+  show('editor');
+  if (!edit.body) setTimeout(()=>$('#edBody').focus(), 400);
+}
+function renderMoods(){
+  $('#moods').innerHTML = MOODS.map(([e,l]) => `<button class="mood${edit.mood===l?' on':''}" data-m="${l}"><span>${e}</span>${l}</button>`).join('');
+  $$('#moods .mood').forEach(b => b.onclick = () => { edit.mood = edit.mood===b.dataset.m ? '' : b.dataset.m; renderMoods(); queueSave(); });
+}
+function updateWc(){ const n = words($('#edBody').value); $('#wc').textContent = n + (n===1?' word':' words'); }
+function setSaved(state){
+  const s = $('#saved'); s.classList.toggle('saving', state !== 'ok');
+  s.lastChild.textContent = state === 'ok' ? 'Saved' : state === 'fail' ? 'Not saved — offline' : 'Saving…';
+  s.firstChild.style.background = state === 'fail' ? 'var(--danger)' : '';
+}
+function queueSave(){ setSaved('saving'); clearTimeout(saveT); saveT = setTimeout(saveNow, 600); }
+function saveNow(){
+  clearTimeout(saveT);
+  if (!edit) return saving;
+  edit.title = $('#edTitle').value; edit.body = $('#edBody').value; edit.date = $('#edDate').value || today();
+  const i = cache.findIndex(e=>e.id===edit.id);
+  if (!edit.title.trim() && !edit.body.trim() && i < 0){ setSaved('ok'); return saving; }
+  edit.updated = Date.now();
+  const { isNew, ...clean } = edit;
+  if (i >= 0) cache[i] = clean; else cache.push(clean);
+  const mine = edit;
+  saving = saving.then(() => api('/entries', clean))
+    .then(() => { if (edit === mine) setSaved('ok'); })
+    .catch(e => { if (edit === mine) setSaved('fail'); toast(e.message); });
+  return saving;
+}
+$('#edTitle').oninput = queueSave;
+$('#edBody').oninput = () => { updateWc(); queueSave(); if ($('#edBody').value) $('#promptBox').hidden = true; };
+$('#edDate').onchange = queueSave;
+$('#promptBox').onclick = () => { const b = $('#edBody'); b.value = $('#promptBox').textContent.replace('Prompt · ','') + '\n'; b.focus(); updateWc(); queueSave(); $('#promptBox').hidden = true; };
+$('#insTime').onclick = () => {
+  const b = $('#edBody'), t = new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  const pos = b.selectionStart ?? b.value.length, before = b.value.slice(0,pos), ins = (before && !before.endsWith('\n') ? '\n\n' : '') + `— ${t} —\n`;
+  b.value = before + ins + b.value.slice(pos); b.focus(); b.selectionStart = b.selectionEnd = pos + ins.length; updateWc(); queueSave();
+};
+function closeEditor(){
+  if (!edit) return;
+  const cur = edit;
+  saveNow();
+  const i = cache.findIndex(e=>e.id===cur.id);
+  if (i >= 0 && !cache[i].title.trim() && !cache[i].body.trim()){
+    cache.splice(i,1); saving = saving.then(() => api('/entries/' + encodeURIComponent(cur.id), null, 'DELETE')).catch(()=>{});
+  }
+  edit = null; renderHome(); show('home');
+}
+$('#edBack').onclick = closeEditor;
+$('#edDone').onclick = () => { const wasNew = edit.isNew && ($('#edTitle').value.trim() || $('#edBody').value.trim()); closeEditor(); if (wasNew) toast('Entry saved ✨'); };
+$('#edDel').onclick = () => confirmSheet('Delete this entry?', 'This page of your diary will be removed. This cannot be undone.', 'Delete', async () => {
+  clearTimeout(saveT);
+  const id = edit.id;
+  try{ await saving; await api('/entries/' + encodeURIComponent(id), null, 'DELETE'); }
+  catch(e){ toast(e.message); return; }
+  cache = cache.filter(e=>e.id!==id); edit = null; closeSheet(); renderHome(); show('home'); toast('Entry deleted');
+});
+$('#fab').onclick = () => openEditor(null);
+
+/* ---------- sheets ---------- */
+function openSheet(html){ $('#sheetBody').innerHTML = html; $('#scrim').classList.add('show'); $('#sheet').classList.add('show'); }
+function closeSheet(){ $('#scrim').classList.remove('show'); $('#sheet').classList.remove('show'); }
+$('#scrim').onclick = closeSheet;
+function confirmSheet(title, text, label, fn){
+  openSheet(`<div class="confirm"><h3>${title}</h3><p>${text}</p><div class="btns"><button class="btn ghost" id="cNo">Cancel</button><button class="btn red" id="cYes">${label}</button></div></div>`);
+  $('#cNo').onclick = closeSheet; $('#cYes').onclick = fn;
+}
+const ic = p => `<div class="ic"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">${p}</svg></div>`;
+$('#avatarBtn').onclick = () => {
+  const light = document.documentElement.dataset.theme === 'light';
+  openSheet(`<div class="prof"><div class="avatar">${esc(me.name[0].toUpperCase())}</div><div><b>${esc(me.name)}</b><span>@${esc(me.username)} · ${esc(me.email)}</span></div></div>
+    <button class="opt" id="oTheme">${ic('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>')}<div>${light?'Dark':'Light'} mode<small>Switch the app's appearance</small></div></button>
+    <button class="opt" id="oPw">${ic('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>')}<div>Change password<small>Verify with a one-time code</small></div></button>
+    <button class="opt" id="oExport">${ic('<path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/>')}<div>Export backup<small>Download all entries as a file</small></div></button>
+    <button class="opt" id="oImport">${ic('<path d="M12 21V9m0 0-4 4m4-4 4 4M4 5h16"/>')}<div>Import backup<small>Restore entries from a file</small></div></button>
+    <button class="opt danger" id="oOut">${ic('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>')}<div>Sign out</div></button>`);
+  $('#oTheme').onclick = () => { setTheme(light ? 'dark' : 'light'); closeSheet(); };
+  $('#oPw').onclick = async () => { closeSheet(); try{ startOtp(await api('/password/otp', {})); }catch(e){ toast(e.message); } };
+  $('#oExport').onclick = () => {
+    const blob = new Blob([JSON.stringify({app:'Daybook', exported:new Date().toISOString(), entries:cache}, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `daybook-backup-${today()}.json`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000); closeSheet(); toast('Backup downloaded');
+  };
+  $('#oImport').onclick = () => $('#importFile').click();
+  $('#oOut').onclick = () => confirmSheet('Sign out?', 'Your entries stay safely saved in your Daybook database.', 'Sign out', logout);
+};
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try{
+    const data = JSON.parse(await f.text());
+    const r = await api('/entries/import', { entries: Array.isArray(data) ? data : data.entries });
+    cache = (await api('/entries')).entries;
+    closeSheet(); renderHome(); toast(`Imported ${r.imported} entr${r.imported===1?'y':'ies'}`);
+  }catch(x){ toast(x.status ? x.message : 'That file is not a valid Daybook backup'); }
+};
+
+/* ---------- theme ---------- */
+function setTheme(t){ document.documentElement.dataset.theme = t; document.querySelector('meta[name=theme-color]').content = t==='light' ? '#F6F1E8' : '#0E0D12'; pref.set('daybook_theme', t); }
+setTheme(pref.get('daybook_theme', 'dark'));
+
+document.addEventListener('visibilitychange', () => { if (document.hidden && current === 'editor') saveNow(); });
+
+/* ---------- boot ---------- */
+(async () => {
+  if (!token) return show('login');
+  try{ await enter((await api('/me')).user); }
+  catch(e){ show('login'); if (e.offline) toast(e.message); }
+})();
+})();
+</script>
+</body>
+</html>

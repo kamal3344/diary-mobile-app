@@ -1,0 +1,11 @@
+{
+  "host": "0.0.0.0",
+  "port": 8000,
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "username": "your.address@gmail.com",
+    "password": "your 16-letter Gmail app password",
+    "from": "Daybook <your.address@gmail.com>"
+  }
+}
