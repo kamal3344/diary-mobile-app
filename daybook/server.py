@@ -22,15 +22,25 @@ from urllib.parse import unquote, urlparse
 
 BASE = Path(__file__).resolve().parent
 STATIC = BASE / "static"
-CONFIG_PATH = BASE / "config.json"
+CONFIG_PATH = Path(os.environ.get("DAYBOOK_CONFIG", BASE / "config.json"))
 CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
 DB_PATH = Path(os.environ.get("DAYBOOK_DB", BASE / "daybook.db"))
 HOST = os.environ.get("DAYBOOK_HOST", CONFIG.get("host", "0.0.0.0"))
-PORT = int(os.environ.get("DAYBOOK_PORT", CONFIG.get("port", 8000)))
-SMTP = CONFIG.get("smtp") or {}
+PORT = int(os.environ.get("DAYBOOK_PORT") or os.environ.get("PORT") or CONFIG.get("port", 8000))
+PRODUCTION = os.environ.get("DAYBOOK_ENV") == "production"
+SMTP = dict(CONFIG.get("smtp") or {})
+# cloud hosts pass secrets as environment variables instead of config.json
+for key in ("host", "port", "username", "password", "from"):
+    if os.environ.get(f"DAYBOOK_SMTP_{key.upper()}"):
+        SMTP[key] = os.environ[f"DAYBOOK_SMTP_{key.upper()}"]
 if SMTP.get("password"):
     SMTP["password"] = SMTP["password"].replace(" ", "")  # Google shows app passwords in groups of 4
 EMAIL_ENABLED = bool(SMTP.get("host") and SMTP.get("username") and SMTP.get("password"))
+if PRODUCTION and not EMAIL_ENABLED:
+    # on-screen codes would let anyone reset any password, so never run that way in production
+    raise SystemExit("DAYBOOK_ENV=production requires email settings (DAYBOOK_SMTP_*). Refusing to start.")
+# pages the Android app is served from; it calls the API across origins
+ALLOWED_ORIGINS = {"https://localhost", "http://localhost", "capacitor://localhost"}
 
 SESSION_DAYS = 30
 OTP_TTL = 5 * 60
@@ -400,6 +410,18 @@ def api_entries_delete(eid, ctx):
     return {"ok": True}
 
 
+def api_account_delete(b, ctx):
+    user = ctx["user"]
+    key = "delete:" + user["email"]
+    throttle_check(key)
+    if not check_pw(str(b.get("password", "")), user):
+        throttle_fail(key)
+        raise ApiError(400, "Incorrect password")
+    # entries, sessions and codes go with the user via ON DELETE CASCADE
+    q("DELETE FROM users WHERE id = ?", (user["id"],))
+    return {"ok": True}
+
+
 ROUTES = {
     ("POST", "/api/signup"): (api_signup, False),
     ("POST", "/api/login"): (api_login, False),
@@ -413,6 +435,7 @@ ROUTES = {
     ("GET", "/api/entries"): (api_entries_list, True),
     ("POST", "/api/entries"): (api_entries_save, True),
     ("POST", "/api/entries/import"): (api_entries_import, True),
+    ("POST", "/api/account/delete"): (api_account_delete, True),
 }
 
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
@@ -436,8 +459,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
+        self.cors_headers()
         self.end_headers()
         self.wfile.write(data)
+
+    def cors_headers(self):
+        origin = self.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+            self.send_header("Access-Control-Max-Age", "86400")
+            self.send_header("Vary", "Origin")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.cors_headers()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def auth(self):
         h = self.headers.get("Authorization", "")
@@ -482,7 +521,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path.startswith("/api/"):
             return self.handle_api("GET")
-        rel = "index.html" if path in ("/", "") else unquote(path.lstrip("/"))
+        pages = {"/": "index.html", "": "index.html", "/privacy": "privacy.html"}
+        rel = pages.get(path) or unquote(path.lstrip("/"))
         f = (STATIC / rel).resolve()
         if STATIC.resolve() not in f.parents or not f.is_file():
             return self.send(404, b"Not found", "text/plain")

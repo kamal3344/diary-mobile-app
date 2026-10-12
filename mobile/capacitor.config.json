@@ -1,0 +1,8 @@
+{
+  "appId": "com.kamal3344.daybook",
+  "appName": "Daybook",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0E0D12"
+  }
+}

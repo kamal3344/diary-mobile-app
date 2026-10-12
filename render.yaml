@@ -1,0 +1,32 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: daybook
+    runtime: python
+    plan: starter            # persistent disks need a paid plan (about $7/month)
+    region: singapore        # closest Render region to India
+    buildCommand: "true"     # standard library only: nothing to install
+    startCommand: python daybook/server.py
+    healthCheckPath: /privacy
+    disk:
+      name: daybook-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.7
+      - key: DAYBOOK_ENV
+        value: production
+      - key: DAYBOOK_DB
+        value: /var/data/daybook.db
+      - key: DAYBOOK_SMTP_HOST
+        value: smtp.gmail.com
+      - key: DAYBOOK_SMTP_PORT
+        value: "587"
+      # secrets: entered in the Render dashboard, never stored in git
+      - key: DAYBOOK_SMTP_USERNAME
+        sync: false
+      - key: DAYBOOK_SMTP_PASSWORD
+        sync: false
+      - key: DAYBOOK_SMTP_FROM
+        sync: false

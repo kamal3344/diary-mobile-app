@@ -290,9 +290,12 @@ input.in:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,106,.1
   <input type="file" id="importFile" accept="application/json" hidden>
 </div>
 
+<script src="config.js"></script>
 <script>
 (() => {
 'use strict';
+// empty on the web (same server); the Android build sets the cloud server's https address
+const API_BASE = (window.DAYBOOK_API_BASE || '').replace(/\/$/, '');
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -311,7 +314,7 @@ async function api(path, body, method){
   method = method || (body ? 'POST' : 'GET');
   let res;
   try{
-    res = await fetch('/api' + path, { method, headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    res = await fetch(API_BASE + '/api' + path, { method, headers: { 'Content-Type':'application/json', ...(token ? { Authorization:'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined });
   }catch{ throw Object.assign(new Error("Can't reach the Daybook server. Is it running?"), { offline:true }); }
   let data = {}; try{ data = await res.json(); }catch{}
   if (res.status === 401 && token){ clearToken(); me = null; show('login'); toast('Please sign in again'); }
@@ -643,7 +646,25 @@ $('#avatarBtn').onclick = () => {
     <button class="opt" id="oPw">${ic('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>')}<div>Change password<small>Verify with a one-time code</small></div></button>
     <button class="opt" id="oExport">${ic('<path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/>')}<div>Export backup<small>Download all entries as a file</small></div></button>
     <button class="opt" id="oImport">${ic('<path d="M12 21V9m0 0-4 4m4-4 4 4M4 5h16"/>')}<div>Import backup<small>Restore entries from a file</small></div></button>
-    <button class="opt danger" id="oOut">${ic('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>')}<div>Sign out</div></button>`);
+    <button class="opt" id="oPrivacy">${ic('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/>')}<div>Privacy policy<small>How your data is handled</small></div></button>
+    <button class="opt danger" id="oOut">${ic('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>')}<div>Sign out</div></button>
+    <button class="opt danger" id="oDelete">${ic('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<div>Delete account<small>Permanently erase your account and all entries</small></div></button>`);
+  $('#oPrivacy').onclick = () => window.open((API_BASE || location.origin) + '/privacy', '_blank');
+  $('#oDelete').onclick = () => {
+    openSheet(`<div class="confirm"><h3>Delete your account?</h3>
+      <p>This permanently erases your account and every diary entry. It cannot be undone. Export a backup first if you want to keep your writing.</p>
+      <div class="field"><label>Confirm with your password</label><input class="in" type="password" id="delPw" autocomplete="current-password" placeholder="Your password"></div>
+      <div class="err" id="delErr"></div>
+      <div class="btns"><button class="btn ghost" id="cNo">Cancel</button><button class="btn red" id="cYes">Delete forever</button></div></div>`);
+    $('#cNo').onclick = closeSheet;
+    $('#cYes').onclick = () => busy($('#cYes'), async () => {
+      try{
+        await api('/account/delete', { password:$('#delPw').value });
+        clearToken(); me = null; cache = []; closeSheet(); show('login'); toast('Your account has been deleted');
+      }catch(e){ $('#delErr').textContent = e.message; }
+    });
+    setTimeout(() => $('#delPw').focus(), 400);
+  };
   $('#oTheme').onclick = () => { setTheme(light ? 'dark' : 'light'); closeSheet(); };
   $('#oPw').onclick = async () => { closeSheet(); try{ startOtp(await api('/password/otp', {})); }catch(e){ toast(e.message); } };
   $('#oExport').onclick = () => {

@@ -6,6 +6,16 @@ daybook/*.db
 daybook/*.db-shm
 daybook/*.db-wal
 
+# Android app: generated or installed files
+mobile/node_modules/
+mobile/www/
+mobile/android/local.properties
+
+# App signing key: NEVER commit (back it up privately instead)
+*.jks
+*.keystore
+mobile/keystore.properties
+
 # Local tooling
 .claude/
 __pycache__/
