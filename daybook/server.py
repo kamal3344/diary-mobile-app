@@ -15,7 +15,10 @@ import sys
 import sqlite3
 import threading
 import time
+import urllib.error
+import urllib.request
 from email.message import EmailMessage
+from email.utils import parseaddr
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -33,9 +36,16 @@ SMTP = dict(CONFIG.get("smtp") or {})
 for key in ("host", "port", "username", "password", "from"):
     if os.environ.get(f"DAYBOOK_SMTP_{key.upper()}"):
         SMTP[key] = os.environ[f"DAYBOOK_SMTP_{key.upper()}"]
+# dashboard text boxes can add stray line breaks, which break the SMTP login command
+for key in ("host", "username", "from"):
+    if isinstance(SMTP.get(key), str):
+        SMTP[key] = " ".join(SMTP[key].split())
 if SMTP.get("password"):
-    SMTP["password"] = SMTP["password"].replace(" ", "")  # Google shows app passwords in groups of 4
-EMAIL_ENABLED = bool(SMTP.get("host") and SMTP.get("username") and SMTP.get("password"))
+    SMTP["password"] = "".join(str(SMTP["password"]).split())  # Google shows app passwords in groups of 4
+BREVO_API_KEY = "".join(os.environ.get("DAYBOOK_BREVO_API_KEY", CONFIG.get("brevo_api_key", "")).split())
+EMAIL_FROM = SMTP.get("from") or SMTP.get("username") or ""
+EMAIL_ENABLED = bool(BREVO_API_KEY and EMAIL_FROM) or bool(
+    SMTP.get("host") and SMTP.get("username") and SMTP.get("password"))
 if PRODUCTION and not EMAIL_ENABLED:
     # on-screen codes would let anyone reset any password, so never run that way in production
     raise SystemExit("DAYBOOK_ENV=production requires email settings (DAYBOOK_SMTP_*). Refusing to start.")
@@ -188,24 +198,50 @@ PURPOSE_TEXT = {"login": "sign in to", "signup": "verify your email for", "reset
 
 
 def send_email(to, code, purpose):
-    msg = EmailMessage()
-    msg["Subject"] = f"Your Daybook code: {code}"
-    msg["From"] = SMTP.get("from") or SMTP["username"]
-    msg["To"] = to
-    msg.set_content(
-        f"Your Daybook verification code is {code}\n\n"
-        f"Use it to {PURPOSE_TEXT[purpose]} Daybook. It expires in 5 minutes.\n"
-        "If you didn't request this, you can ignore this email."
-    )
-    msg.add_alternative(
-        f"""<div style="font-family:Georgia,serif;max-width:420px;margin:auto;padding:32px;background:#0E0D12;color:#F3EFE6;border-radius:20px">
+    subject = f"Your Daybook code: {code}"
+    text = (f"Your Daybook verification code is {code}\n\n"
+            f"Use it to {PURPOSE_TEXT[purpose]} Daybook. It expires in 5 minutes.\n"
+            "If you didn't request this, you can ignore this email.")
+    html = f"""<div style="font-family:Georgia,serif;max-width:420px;margin:auto;padding:32px;background:#0E0D12;color:#F3EFE6;border-radius:20px">
         <div style="font-size:22px">Daybook</div>
         <p style="font-family:Arial,sans-serif;color:#8E8A99">Use this code to {PURPOSE_TEXT[purpose]} Daybook:</p>
         <div style="font-family:Arial,sans-serif;font-size:34px;letter-spacing:10px;color:#D4AF6A;font-weight:bold;margin:18px 0">{code}</div>
-        <p style="font-family:Arial,sans-serif;color:#8E8A99;font-size:13px">It expires in 5 minutes. If you didn't request this, ignore this email.</p></div>""",
-        subtype="html",
-    )
+        <p style="font-family:Arial,sans-serif;color:#8E8A99;font-size:13px">It expires in 5 minutes. If you didn't request this, ignore this email.</p></div>"""
+    if BREVO_API_KEY:
+        return brevo_send(to, subject, text, html)
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = SMTP.get("from") or SMTP["username"]
+    msg["To"] = to
+    msg.set_content(text)
+    msg.add_alternative(html, subtype="html")
     port = int(SMTP.get("port", 587))
+    try:
+        smtp_send(msg, port)
+    except (smtplib.SMTPServerDisconnected, OSError) as e:
+        if port == 465:
+            raise
+        # some networks cut STARTTLS on 587; Gmail also accepts implicit TLS on 465
+        print(f"[email] port {port} failed ({type(e).__name__}: {e}); retrying on 465")
+        smtp_send(msg, 465)
+
+
+def brevo_send(to, subject, text, html):
+    # HTTPS email API: works where cloud hosts block or throttle SMTP
+    name, addr = parseaddr(EMAIL_FROM)
+    body = json.dumps({"sender": {"name": name or "Daybook", "email": addr}, "to": [{"email": to}],
+                       "subject": subject, "textContent": text, "htmlContent": html}).encode()
+    req = urllib.request.Request("https://api.brevo.com/v3/smtp/email", data=body, method="POST",
+                                 headers={"api-key": BREVO_API_KEY, "Content-Type": "application/json",
+                                          "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Brevo HTTP {e.code}: {e.read()[:300].decode(errors='replace')}") from None
+
+
+def smtp_send(msg, port):
     if port == 465:
         with smtplib.SMTP_SSL(SMTP["host"], port, timeout=20) as s:
             s.login(SMTP["username"], SMTP["password"])
@@ -223,8 +259,8 @@ def deliver_code(user, token, code, purpose):
         try:
             send_email(user["email"], code, purpose)
         except Exception as e:  # surface delivery problems instead of failing silently
-            print(f"[email] failed to send to {user['email']}: {e}")
-            raise ApiError(502, "We couldn't send the email. Check the email settings in config.json.")
+            print(f"[email] failed to send to {user['email']}: {type(e).__name__}: {e}")
+            raise ApiError(502, "We couldn't send the verification email right now. Please try again in a minute.")
     else:
         print(f"[dev] {purpose} code for {user['email']}: {code}")
         out["devCode"] = code  # no email configured: the app shows the code on screen
@@ -548,7 +584,8 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(line_buffering=True)
     srv = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"\n  Daybook is running\n  Database : {DB_PATH}")
-    print(f"  Email OTP: {'ON via ' + SMTP['host'] if EMAIL_ENABLED else 'OFF (dev mode: codes shown on screen and here)'}")
+    via = "Brevo API" if BREVO_API_KEY else SMTP.get("host")
+    print(f"  Email OTP: {'ON via ' + via if EMAIL_ENABLED else 'OFF (dev mode: codes shown on screen and here)'}")
     print(f"  On this PC   : http://localhost:{PORT}")
     ip = lan_ip()
     if ip and HOST == "0.0.0.0":
